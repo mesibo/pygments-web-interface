@@ -3,4 +3,6 @@
 env
 backup
 __pycache__
+*.pid
+.gitignore
 
