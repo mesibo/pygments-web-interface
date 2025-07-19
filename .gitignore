@@ -1,0 +1,6 @@
+*.pyc
+*.swp
+env
+backup
+__pycache__
+

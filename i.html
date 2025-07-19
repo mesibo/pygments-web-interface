@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pygments Web Interface - Beautiful Code Syntax Highlighting</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --brand-color: #00868b;
+            --brand-light: #00b4bb;
+            --brand-dark: #005a5f;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--brand-color) 0%, var(--brand-dark) 100%);
+            min-height: 100vh;
+        }
+
+        .brand-header {
+            background: var(--brand-color);
+            color: white;
+        }
+
+        .brand-header h1 {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .brand-header p {
+            color: #ffffff;
+        }
+
+        .brand-header a {
+            color: #c2f5f6;
+        }
+
+        .brand-header a:hover {
+            color: #fbbf24;
+        }
+
+        .brand-btn {
+            background: linear-gradient(45deg, var(--brand-color), var(--brand-dark));
+            border: none;
+        }
+
+        .brand-btn:hover {
+            background: linear-gradient(45deg, var(--brand-light), var(--brand-color));
+            transform: translateY(-1px);
+        }
+
+        .brand-focus:focus {
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 134, 139, 0.25);
+        }
+
+        #code {
+            font-family: monospace;
+            min-height: 320px;
+            resize: vertical;
+        }
+
+        .controls-container {
+            background: var(--bs-gray-100);
+            border: 1px solid var(--bs-border-color);
+        }
+
+        .checkbox-control {
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .checkbox-control:hover {
+            background-color: var(--bs-gray-50);
+        }
+
+        .copy-notification {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            background: linear-gradient(135deg, var(--brand-color), var(--brand-dark));
+            transform: translateX(400px);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1050;
+        }
+
+        .copy-notification.show {
+            transform: translateX(0);
+        }
+
+        .preview-content {
+            background: var(--bs-gray-100);
+        }
+
+        /* Custom scrollbar */
+        .overflow-auto::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .overflow-auto::-webkit-scrollbar-track {
+            background: rgba(0, 134, 139, 0.1);
+        }
+
+        .overflow-auto::-webkit-scrollbar-thumb {
+            background: rgba(0, 134, 139, 0.3);
+            border-radius: 4px;
+        }
+
+        .overflow-auto::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 134, 139, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- Left Panel - Form -->
+            <div class="col-lg-6 d-flex flex-column bg-white bg-opacity-95 shadow">
+                <div class="brand-header p-4">
+                    <h1 class="h2 mb-3">
+                        <i class="bi bi-code-slash me-2"></i>Code Syntax Highlighter
+                    </h1>
+                    <p class="mb-2 opacity-75">
+                        A simple web interface for <a href="https://pygments.org" target="_blank" class="text-info text-decoration-none">Pygments</a>, a powerful syntax highlighter written in Python.
+                    </p>
+                    <p class="mb-2 opacity-75">
+                        This project is a fork of the original <a href="http://hilite.me/" target="_blank" class="text-info text-decoration-none">hilite.me</a>, maintained by <a href="https://mesibo.com" target="_blank" class="text-info text-decoration-none">mesibo</a>.
+                    </p>
+                    <p class="mb-0 opacity-75">
+                        For more information, visit the <a href="https://github.com/mesibo/pygments-web-interface" target="_blank" class="text-info text-decoration-none">GitHub repository</a>.
+                    </p>
+                </div>
+
+                <form id="highlightForm" class="flex-grow-1 p-4 overflow-auto">
+                    <div class="mb-4">
+                        <label for="code" class="form-label fw-semibold text-secondary small text-uppercase">Paste Source Code</label>
+                        <textarea name="code" id="code" class="form-control brand-focus bg-light" placeholder="Paste your code here..." required>{{ code }}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="divstyles" class="form-label fw-semibold text-secondary small text-uppercase">Custom CSS Styles (optional)</label>
+                        <input type="text" id="divstyles" name="divstyles" class="form-control brand-focus" value="{{ divstyles|escape }}" placeholder="border: 1px solid #ccc; padding: 10px;">
+                    </div>
+
+                    <button type="submit" class="btn brand-btn text-white fw-semibold w-100 py-3 rounded-pill shadow">
+                        <i class="bi bi-palette me-2"></i>Highlight Code
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Panel - Preview -->
+            <div class="col-lg-6 d-flex flex-column bg-white bg-opacity-98 shadow">
+                <div class="p-2 border-bottom">
+                    <h3 class="h5 mb-2 text-dark">
+                        <i class="bi bi-eye me-2"></i>Live Preview
+                    </h3>
+
+                    <form id="hiddenForm" class="d-none">
+                        <input type="hidden" name="code" id="hiddenCode">
+                        <input type="hidden" name="lexer" id="hiddenLexer">
+                        <input type="hidden" name="style" id="hiddenStyle">
+                        <input type="hidden" name="linenos" id="hiddenLinenos">
+                        <input type="hidden" name="divstyles" id="hiddenDivstyles">
+                    </form>
+
+                    <div class="controls-container rounded-3 p-2">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label for="lexerControl" class="form-label mb-1 small text-secondary">Language</label>
+                                <select id="lexerControl" class="form-select form-select-sm brand-focus">
+                                    {% for item in lexers %}
+                                    <option {% if item.0 == lexer %}selected{% endif %} value="{{ item.0 }}">{{ item.1 }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="styleControl" class="form-label mb-1 small text-secondary">Theme</label>
+                                <select id="styleControl" class="form-select form-select-sm brand-focus">
+                                    {% for item in styles %}
+                                    <option {% if item == style %}selected{% endif %} value="{{ item }}">{{ item }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="fontFamily" class="form-label mb-1 small text-secondary">Font</label>
+                                <select id="fontFamily" class="form-select form-select-sm brand-focus">
+                                    <option value="Monaco, 'Menlo', 'Ubuntu Mono', monospace">Monaco</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label for="fontSize" class="form-label mb-1 small text-secondary">Size</label>
+                                <input type="number" id="fontSize" class="form-control form-control-sm brand-focus" min="8" max="24" value="18" step="1">
+                            </div>
+
+                            <div class="col-md-2">
+                                <div class="form-check">
+                                    <input id="linenosControl" type="checkbox" class="form-check-input" value="1" {% if linenos %}checked{% endif %}>
+                                    <label for="linenosControl" class="form-check-label small">Line #</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-1">
+                            <div class="col-12">
+                                <button type="button" class="btn brand-btn text-white btn-sm w-100" onclick="copyHtml()" id="copyButton">
+                                    <span id="copyText"><i class="bi bi-clipboard me-1"></i>Copy HTML</span>
+                                    <span id="copySpinner" class="d-none"><i class="bi bi-hourglass-split me-1"></i>Copying...</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-content flex-grow-1 p-2 overflow-auto" id="previewContent">
+                    {% if html %}
+                    {% autoescape false %}
+                    {{ html }}
+                    {% endautoescape %}
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-laptop display-1 mb-3 d-block"></i>
+                        <h5>Your highlighted code will appear here</h5>
+                        <p>Paste code in the left panel and select a language to get started</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="copy-notification alert alert-success rounded-3 text-white fw-semibold" id="copyNotification">
+        <i class="bi bi-check-circle me-2"></i>HTML code copied to clipboard!
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function copyHtml() {
+            const previewContent = document.getElementById('previewContent');
+            if (!previewContent || previewContent.querySelector('.text-center')) {
+                showNotification('No code to copy! Please highlight some code first.');
+                return;
+            }
+
+            const temp = document.createElement('textarea');
+            temp.value = previewContent.innerHTML.trim();
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+
+            showNotification('<i class="bi bi-check-circle me-2"></i>HTML code copied to clipboard!');
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('copyNotification');
+            notification.innerHTML = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function applyFontSettings() {
+            const previewContent = document.getElementById('previewContent');
+            const codeTextarea = document.getElementById('code');
+            const fontFamily = document.getElementById('fontFamily').value;
+            const fontSize = document.getElementById('fontSize').value + 'px';
+
+            // Apply to preview content
+            const codeElements = previewContent.querySelectorAll('pre, code');
+            codeElements.forEach(element => {
+                element.style.fontFamily = fontFamily;
+                element.style.fontSize = fontSize;
+            });
+
+            // Apply to textarea
+            codeTextarea.style.fontFamily = fontFamily;
+            codeTextarea.style.fontSize = fontSize;
+        }
+
+        function updatePreview() {
+            const code = document.getElementById('code').value;
+            const lexer = document.getElementById('lexerControl').value;
+            const style = document.getElementById('styleControl').value;
+            const linenos = document.getElementById('linenosControl').checked ? '1' : '';
+            const divstyles = document.getElementById('divstyles').value;
+
+            const contentKey = `${code}-${lexer}-${style}-${linenos}-${divstyles}`;
+            if (window.lastContentKey === contentKey) return;
+
+            document.getElementById('hiddenCode').value = code;
+            document.getElementById('hiddenLexer').value = lexer;
+            document.getElementById('hiddenStyle').value = style;
+            document.getElementById('hiddenLinenos').value = linenos;
+            document.getElementById('hiddenDivstyles').value = divstyles;
+
+            const previewContent = document.getElementById('previewContent');
+            const copyButton = document.getElementById('copyButton');
+
+            showProgress();
+            if (copyButton) copyButton.disabled = true;
+
+            const formData = new FormData(document.getElementById('hiddenForm'));
+
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newPreviewContent = doc.querySelector('#previewContent');
+
+                if (newPreviewContent && previewContent) {
+                    previewContent.innerHTML = newPreviewContent.innerHTML;
+                    applyFontSettings();
+                    window.lastContentKey = contentKey;
+                }
+
+                hideProgress();
+                if (copyButton) copyButton.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error updating preview:', error);
+                hideProgress();
+                if (copyButton) copyButton.disabled = false;
+                showNotification('Error updating preview');
+            });
+        }
+
+        function showProgress() {
+            document.getElementById('copyText').classList.add('d-none');
+            document.getElementById('copySpinner').classList.remove('d-none');
+        }
+
+        function hideProgress() {
+            document.getElementById('copyText').classList.remove('d-none');
+            document.getElementById('copySpinner').classList.add('d-none');
+        }
+
+        function detectAvailableFonts() {
+            if (window.detectedFonts) return window.detectedFonts;
+
+            const fontsToTest = [
+                // Popular modern coding fonts
+                { name: 'Fira Code', family: "'Fira Code', monospace" },
+                { name: 'JetBrains Mono', family: "'JetBrains Mono', monospace" },
+                { name: 'Cascadia Code', family: "'Cascadia Code', monospace" },
+                { name: 'Source Code Pro', family: "'Source Code Pro', monospace" },
+                { name: 'IBM Plex Mono', family: "'IBM Plex Mono', monospace" },
+                { name: 'Victor Mono', family: "'Victor Mono', monospace" },
+                { name: 'Operator Mono', family: "'Operator Mono', monospace" },
+                { name: 'Dank Mono', family: "'Dank Mono', monospace" },
+                { name: 'Input Mono', family: "'Input Mono', monospace" },
+                
+                // System fonts
+                { name: 'SF Mono', family: "'SF Mono', monospace" }, // macOS
+                { name: 'Monaco', family: "Monaco, monospace" }, // macOS
+                { name: 'Menlo', family: "Menlo, monospace" }, // macOS
+                { name: 'Consolas', family: "'Consolas', monospace" }, // Windows
+                { name: 'Cascadia Mono', family: "'Cascadia Mono', monospace" }, // Windows
+                { name: 'Lucida Console', family: "'Lucida Console', monospace" }, // Windows
+                
+                // Linux/Open Source
+                { name: 'Ubuntu Mono', family: "'Ubuntu Mono', monospace" },
+                { name: 'DejaVu Sans Mono', family: "'DejaVu Sans Mono', monospace" },
+                { name: 'Liberation Mono', family: "'Liberation Mono', monospace" },
+                { name: 'Noto Sans Mono', family: "'Noto Sans Mono', monospace" },
+                { name: 'Inconsolata', family: "'Inconsolata', monospace" },
+                { name: 'Anonymous Pro', family: "'Anonymous Pro', monospace" },
+                { name: 'Hack', family: "'Hack', monospace" },
+                { name: 'Terminus', family: "'Terminus', monospace" },
+                
+                // Google Fonts
+                { name: 'Roboto Mono', family: "'Roboto Mono', monospace" },
+                { name: 'Space Mono', family: "'Space Mono', monospace" },
+                { name: 'PT Mono', family: "'PT Mono', monospace" },
+                { name: 'Oxygen Mono', family: "'Oxygen Mono', monospace" },
+                { name: 'Share Tech Mono', family: "'Share Tech Mono', monospace" },
+                { name: 'Nova Mono', family: "'Nova Mono', monospace" },
+                { name: 'Cutive Mono', family: "'Cutive Mono', monospace" },
+                
+                // Classic/Fallback
+                { name: 'Courier New', family: "'Courier New', monospace" },
+                { name: 'Courier', family: "'Courier', monospace" },
+                { name: 'monospace', family: "monospace" }
+            ];
+
+            let availableFonts = [];
+
+            // Method 1: Try CSS Font Loading API
+            if (document.fonts && document.fonts.check) {
+                fontsToTest.forEach(font => {
+                    try {
+                        if (document.fonts.check('12px ' + font.name.replace(/'/g, ''))) {
+                            availableFonts.push(font);
+                        }
+                    } catch (e) {
+                        // Font check failed, skip
+                    }
+                });
+            }
+
+            // Method 2: Canvas-based detection for better accuracy
+            if (availableFonts.length < 5) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const testString = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                
+                fontsToTest.forEach(font => {
+                    try {
+                        // Test with fallback font first
+                        ctx.font = '12px monospace';
+                        const baselineWidth = ctx.measureText(testString).width;
+                        
+                        // Test with target font
+                        ctx.font = `12px ${font.family}`;
+                        const testWidth = ctx.measureText(testString).width;
+                        
+                        // If widths differ significantly, font is likely available
+                        if (Math.abs(testWidth - baselineWidth) > 1) {
+                            // Check if not already added
+                            if (!availableFonts.some(f => f.name === font.name)) {
+                                availableFonts.push(font);
+                            }
+                        }
+                    } catch (e) {
+                        // Canvas test failed, skip
+                    }
+                });
+            }
+
+            // Ensure we always have fallback fonts
+            const guaranteedFonts = [
+                { name: 'System Monospace', family: "ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', monospace" },
+                { name: 'Courier New', family: "'Courier New', monospace" },
+                { name: 'Generic Monospace', family: "monospace" }
+            ];
+
+            guaranteedFonts.forEach(font => {
+                if (!availableFonts.some(f => f.name === font.name)) {
+                    availableFonts.push(font);
+                }
+            });
+
+            // Sort by popularity/preference
+            const popularOrder = [
+                'Fira Code', 'JetBrains Mono', 'Cascadia Code', 'Source Code Pro', 'SF Mono', 
+                'Monaco', 'Consolas', 'Menlo', 'Ubuntu Mono', 'Roboto Mono', 'System Monospace'
+            ];
+
+            availableFonts.sort((a, b) => {
+                const aIndex = popularOrder.indexOf(a.name);
+                const bIndex = popularOrder.indexOf(b.name);
+                if (aIndex === -1 && bIndex === -1) return a.name.localeCompare(b.name);
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                return aIndex - bIndex;
+            });
+
+            window.detectedFonts = availableFonts;
+            return availableFonts;
+        }
+
+        function populateFontDropdown() {
+            const fontSelect = document.getElementById('fontFamily');
+            const availableFonts = detectAvailableFonts();
+
+            fontSelect.innerHTML = '';
+            availableFonts.forEach(font => {
+                const option = document.createElement('option');
+                option.value = font.family;
+                option.textContent = font.name;
+                fontSelect.appendChild(option);
+            });
+
+            // Set default font: Roboto Mono > Courier New > first available
+            const defaultFonts = ['Roboto Mono', 'Courier New'];
+            let selectedFont = null;
+            
+            for (const fontName of defaultFonts) {
+                const found = availableFonts.find(font => font.name === fontName);
+                if (found) {
+                    selectedFont = found.family;
+                    break;
+                }
+            }
+            
+            if (selectedFont) {
+                fontSelect.value = selectedFont;
+            } else if (availableFonts.length > 0) {
+                fontSelect.value = availableFonts[0].family;
+            }
+        }
+
+        // Save user preferences
+        function savePreferences() {
+            const preferences = {
+                lexer: document.getElementById('lexerControl').value,
+                style: document.getElementById('styleControl').value,
+                fontFamily: document.getElementById('fontFamily').value,
+                fontSize: document.getElementById('fontSize').value,
+                linenos: document.getElementById('linenosControl').checked,
+                divstyles: document.getElementById('divstyles').value
+            };
+            localStorage.setItem('pygments-preferences', JSON.stringify(preferences));
+        }
+
+        // Load user preferences
+        function loadPreferences() {
+            try {
+                const saved = localStorage.getItem('pygments-preferences');
+                if (saved) {
+                    const preferences = JSON.parse(saved);
+                    
+                    // Restore control values
+                    if (preferences.lexer) document.getElementById('lexerControl').value = preferences.lexer;
+                    if (preferences.style) document.getElementById('styleControl').value = preferences.style;
+                    if (preferences.fontFamily) document.getElementById('fontFamily').value = preferences.fontFamily;
+                    if (preferences.fontSize) document.getElementById('fontSize').value = preferences.fontSize;
+                    if (preferences.linenos !== undefined) document.getElementById('linenosControl').checked = preferences.linenos;
+                    if (preferences.divstyles) document.getElementById('divstyles').value = preferences.divstyles;
+                }
+            } catch (e) {
+                console.log('Could not load preferences:', e);
+            }
+        }
+
+        // Event listeners with preference saving
+        ['lexerControl', 'styleControl', 'linenosControl'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function() {
+                savePreferences();
+                if (document.getElementById('code').value.trim()) updatePreview();
+            });
+        });
+
+        ['fontFamily', 'fontSize'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function() {
+                savePreferences();
+                applyFontSettings();
+            });
+        });
+
+        // Save divstyles when changed
+        document.getElementById('divstyles').addEventListener('input', function() {
+            savePreferences();
+        });
+
+        document.getElementById('highlightForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (document.getElementById('code').value.trim()) {
+                updatePreview();
+            } else {
+                showNotification('Please enter some code to highlight!');
+            }
+        });
+
+        // Auto-update with debounce
+        let typingTimer;
+        document.getElementById('code').addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            const code = this.value.trim();
+
+            if (code) {
+                typingTimer = setTimeout(() => updatePreview(), 1500);
+            } else {
+                document.getElementById('previewContent').innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-laptop display-1 mb-3 d-block"></i>
+                        <h5>Your highlighted code will appear here</h5>
+                        <p>Paste code in the left panel and select a language to get started</p>
+                    </div>
+                `;
+                window.lastContentKey = null;
+            }
+        });
+
+        window.addEventListener('load', function() {
+            populateFontDropdown();
+            loadPreferences(); // Load saved preferences first
+            applyFontSettings(); // Then apply font settings
+        });
+    </script>
+</body>
+</html>
