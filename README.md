@@ -2,7 +2,7 @@
 
 Pygments is a powerful syntax highlighter written in Python that supports hundreds of languages and text formats. **Pygments Web Interface** provides a simple web-based frontend to [Pygments](https://pygments.org), allowing users to easily convert code snippets into beautifully formatted HTML which can be pasted in websites or documentation tools such as Google Docs or Slides without needing to write code or use command-line tools.
 
-**Pygments Web Interface** is a fork of the original [hilite.me](http://hilite.me/) by [Mesibo](https://mesibo.com). The original code is very compact (two small Python files and one HTML template) but was unmaintained for 10+ years. We fixed it for internal use for [Mesibo real-time API](https://mesibo.com) and [PatANN Vector Database](https://patann.dev) documentation.
+**Pygments Web Interface** is a fork of the original [hilite.me](https://github.com/alexkay/hilite.me) by [mesibo](https://mesibo.com). The original code is very compact (two small Python files and one HTML template) but was unmaintained for 10+ years. We fixed it for internal use for [Mesibo real-time API](https://mesibo.com) and [PatANN Vector Database](https://patann.dev) documentation.
 
 # Demo
 
