@@ -4,6 +4,10 @@ Pygments is a powerful syntax highlighter written in Python that supports hundre
 
 **Pygments Web Interface** is a fork of the original [hilite.me](http://hilite.me/) by [Mesibo](https://mesibo.com). The original code is very compact (two small Python files and one HTML template) but was unmaintained for 10+ years. We fixed it for internal use for [Mesibo real-time API](https://mesibo.com) and [PatANN Vector Database](https://patann.dev) documentation.
 
+# Demo
+
+[Demo](https://pygments-web-interface.onrender.com/)
+
 ## Changes in This Fork
 
 - **Python 3 compatibility** - Updated from Python 2 to work with Python 3
